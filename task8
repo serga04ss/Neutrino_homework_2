@@ -1,0 +1,28 @@
+import numpy as np
+from detector import Detector
+from det_new import Detector_2
+import time
+
+if __name__ == "__main__":
+    
+    det = Detector(R=15.0, N=2000, r=0.1)
+    Det = Detector_2(R=15.0, N=2000, r=0.1)
+    origin = np.array([0.0, 0.0, 0.0])
+
+    N_photons = 100000
+    cos_theta = np.random.uniform(-1, 1, N_photons)
+    theta = np.arccos(cos_theta)
+    phi = np.random.uniform(0, 2 * np.pi, N_photons)
+    dirs = np.column_stack((np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)))
+    
+    # БЫСТРЫЙ
+    t0 = time.perf_counter()
+    hits_kd = Det.check_hits_kdtree(origin, dirs)
+    t_kd = time.perf_counter() - t0
+
+    # МЕДЛЕННЫЙ 
+    t0 = time.perf_counter()
+    hits_bf = det.check_hits_fast(origin, dirs)
+    t_bf = time.perf_counter() - t0
+    
+    print(f"\nВЫИГРЫШ В СКОРОСТИ ОТ KD-TREE: В {t_bf / t_kd:.1f} раз")
