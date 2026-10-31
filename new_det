@@ -1,0 +1,40 @@
+import numpy as np
+from scipy.spatial import cKDTree
+import time
+
+class Detector:
+    def __init__(self, R=15.0, N=2000, r=0.1):
+        self.R = R
+        self.N = N
+        self.r = r
+        
+        z = np.random.uniform(-self.R, self.R, N)
+        phi = np.random.uniform(0, 2 * np.pi, N)
+        r_xy = np.sqrt(np.maximum(self.R**2 - z**2, 0))
+        
+        self.pmt_coords = np.column_stack((r_xy*np.cos(phi), r_xy*np.sin(phi), z))
+      
+        self.tree = cKDTree(self.pmt_coords)
+
+    def _get_hit_points(self, origin, dirs):
+        
+        A = 1.0
+        B = 2 * np.dot(dirs, origin)
+        C = np.sum(origin**2) - self.R**2
+        disc = B**2 - 4 * A * C
+        
+        valid = disc >= 0
+        if not np.any(valid): return np.array([])
+            
+        t = (-B[valid] + np.sqrt(disc[valid])) / (2*A)
+        valid_t = t > 0
+        if not np.any(valid_t): return np.array([])
+            
+        return origin + t[valid_t, np.newaxis] * dirs[valid][valid_t]
+
+    def check_hits_kdtree(self, origin, dirs):
+        hit_points = self._get_hit_points(origin, dirs)
+        if len(hit_points) == 0: return 0
+        
+        dists, _ = self.tree.query(hit_points, k=1)
+        return np.sum(dists <= self.r)
