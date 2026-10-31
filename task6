@@ -1,0 +1,42 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from detector import Detector
+from source import Source
+
+if __name__ == "__main__":
+    src = Source(Y=10000)
+    energy = 1.0
+    events = 300
+    
+    positions = [np.array([0, 0, -1.5]), np.array([0, 0, 0]), np.array([0, 0, 1.5])]
+
+    det = Detector(R=2.0)
+    
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    
+    for i, pos in enumerate(positions):
+        charges_no = []
+        charges_att = []
+        
+        for _ in range(events):
+            dirs, num_photons = src.generate_photons(energy)
+            
+            det.attenuation_length = None
+            hits_no = det.check_hits_fast(pos, dirs)
+            charges_no.append(np.sum(np.random.poisson(0.5, hits_no)) if hits_no > 0 else 0)
+            
+            det.attenuation_length = 8.0
+            hits_att = det.check_hits_fast(pos, dirs)
+            charges_att.append(np.sum(np.random.poisson(0.5, hits_att)) if hits_att > 0 else 0)
+        
+        ax = axes[i]
+        ax.hist(charges_no, bins=25, alpha=0.5, color='blue', label='Без затухания')
+        ax.hist(charges_att, bins=25, alpha=0.5, color='red', label='С затуханием (8м)')
+        ax.set_title(f'Источник Z = {pos[2]} м')
+        ax.set_xlabel('Заряд')
+        ax.set_ylabel('Частота')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
