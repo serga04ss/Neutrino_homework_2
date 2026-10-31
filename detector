@@ -1,0 +1,46 @@
+import numpy as np
+
+class Detector:
+    def __init__(self, R=2.0, N=40, r=0.1, a=0.5, attenuation_length=None):
+        self.R = R
+        self.N = N
+        self.r = r
+        self.a = a
+        self.attenuation_length = attenuation_length 
+        
+        z = np.random.uniform(-self.R, self.R, N)
+        phi = np.random.uniform(0, 2 * np.pi, N)
+        r_xy = np.sqrt(self.R**2 - z**2)
+        self.pmt_coords = np.column_stack((r_xy*np.cos(phi), r_xy*np.sin(phi), z))
+
+    def check_hits_fast(self, origin, directions):
+        A = 1.0 
+        B = 2 * np.dot(directions, origin)
+        C = np.sum(origin**2) - self.R**2
+        discriminant = B**2 - 4 * A * C
+        
+        valid = discriminant >= 0
+        if not np.any(valid): return 0
+            
+        t1 = (-B - np.sqrt(discriminant)) / (2 * A)
+        t2 = (-B + np.sqrt(discriminant)) / (2 * A)
+        t = np.where(t2 > 0, t2, t1)
+        valid &= (t > 0)
+        if not np.any(valid): return 0
+            
+        hit_points = origin + t[valid, np.newaxis] * directions[valid]
+        distances = t[valid]
+        
+        # --- ЗАТУХАНИЕ ---
+        if self.attenuation_length is not None:
+            prob_survive = np.exp(-distances / self.attenuation_length)
+            random_vals = np.random.uniform(0, 1, len(prob_survive))
+            survived_mask = random_vals < prob_survive
+            
+            if not np.any(survived_mask): return 0
+            hit_points = hit_points[survived_mask] 
+            
+        # Поиск ближайших ФЭУ
+        dists = np.linalg.norm(hit_points[:, np.newaxis, :] - self.pmt_coords[np.newaxis, :, :], axis=2)
+        min_dists = np.min(dists, axis=1)
+        return np.sum(min_dists <= self.r)
